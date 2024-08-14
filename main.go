@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,27 +19,21 @@ import (
 
 // Saxo API and WebSocket Configuration
 const (
-	apiBaseURL   = "https://gateway.saxobank.com/sim/openapi"
-	wsBaseURL    = "wss://streaming.saxobank.com/sim/openapi"
-	instrumentID = "21"     // Instrument ID for the EURUSD currency pair
-	assetType    = "FxSpot" // Different price formats for different asset types (FxSpot, Stock, etc.)
+	apiBaseURL = "https://gateway.saxobank.com/sim/openapi"
+	wsBaseURL  = "wss://streaming.saxobank.com/sim/openapi"
+)
+
+var (
+	fxSpotIDs          = []string{"21", "22"}                         // Modify as needed
+	contractFuturesIDs = []string{"37978561", "37978556", "39614794"} // Modify as needed
 )
 
 // Replace this with the temporary token provided by Saxo (https://www.developer.saxo/openapi/token/current/)
-var accessToken = "" // Temporary access token for testing purposes
+var accessToken = "eyJhbGciOiJFUzI1NiIsIng1dCI6IjI3RTlCOTAzRUNGMjExMDlBREU1RTVCOUVDMDgxNkI2QjQ5REEwRkEifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiTDgtS25lNWZneTV5Z0ItN0Zza21wQT09IiwiY2lkIjoiTDgtS25lNWZneTV5Z0ItN0Zza21wQT09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiYzU0NDZlMGZjMDEyNGE4ZGEzYjZiMTdlMGU2NDgxNzMiLCJkZ2kiOiI4NCIsImV4cCI6IjE3MzEzMTcxNzQiLCJvYWwiOiIxRiIsImlpZCI6IjU0YmZjZWFiNzYwZDQwOTdjNjMyMDhkYmFkMjRiMzA0In0.ggAtzXCGjcgr1H8TlH3A_hAuDxmNifRFD-cD0FDN1Mx0jT4O2byvmWj5EtCXAi3XasoNzB7g6UXw4FoNvv6aZQ" // Temporary access token for testing purposes
 
 // subscribeToPrices subscribes to price updates for a specific instrument
-func subscribeToPrices(accessToken, contextID, referenceID, instrumentID string, assetType string) error {
-	// Define the subscription request
-	subscription := map[string]interface{}{
-		"ContextId":   contextID,
-		"ReferenceId": referenceID,
-		"RefreshRate": 1000,
-		"Arguments": map[string]interface{}{
-			"Uics":      instrumentID,
-			"AssetType": assetType,
-		},
-	}
+// func subscribeToPrices(accessToken, contextID, referenceID, instrumentID string, assetType string) error {
+func subscribeToPrices(accessToken string, subscription map[string]interface{}) error {
 
 	// Convert subscription data to JSON
 	subscriptionData, err := json.Marshal(subscription)
@@ -55,8 +50,8 @@ func subscribeToPrices(accessToken, contextID, referenceID, instrumentID string,
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	// Log the full request for debugging
+	//log.Printf("Subscription Request Headers: %v", req.Header)
 	log.Printf("Subscription Request URL: %s", req.URL.String())
-	log.Printf("Subscription Request Headers: %v", req.Header)
 	log.Printf("Subscription Request Body: %s", subscriptionData)
 
 	// Send the request
@@ -73,7 +68,7 @@ func subscribeToPrices(accessToken, contextID, referenceID, instrumentID string,
 		return fmt.Errorf("failed to subscribe to prices: %s, response body: %s", resp.Status, bodyString)
 	}
 
-	log.Printf("Successfully subscribed to price updates with Context ID: %s and Reference ID: %s", contextID, referenceID)
+	log.Printf("Successfully subscribed:  %s", subscriptionData)
 	return nil
 }
 
@@ -113,7 +108,7 @@ func connectWebSocket(accessToken string, contextid string) (*websocket.Conn, er
 // handleWebSocket manages the WebSocket connection and message handling
 func handleWebSocket(conn *websocket.Conn) {
 	defer conn.Close()
-	timeout := time.After(2 * time.Minute) // Set the timeout for 1 minute
+	timeout := time.After(1 * time.Minute) // Set the timeout for 1 minute
 
 	for {
 		select {
@@ -170,7 +165,7 @@ func handleMessage(message []byte) {
 	if isControlMessage(refID) {
 		handleControlMessage(refID, payload)
 	} else {
-		handlePriceUpdateMessage(refID, payloadFormat, payload)
+		handlePayloadMessage(refID, payloadFormat, payload)
 	}
 }
 
@@ -200,8 +195,8 @@ func handleControlMessage(refID string, payload []byte) {
 	}
 }
 
-// handlePriceUpdateMessage processes price update messages
-func handlePriceUpdateMessage(refID string, payloadFormat byte, payload []byte) {
+// handlePayloadMessage processes price update messages
+func handlePayloadMessage(refID string, payloadFormat byte, payload []byte) {
 	if payloadFormat != 0 {
 		log.Printf("Unexpected payload format: %d. Only JSON format (0) is expected.", payloadFormat)
 		return
@@ -284,6 +279,18 @@ func generateID() string {
 // subscriptionMap stores the reference ID and subscription type mapping
 var subscriptionMap = make(map[string]string)
 
+func subcriptionmessage(contextID string, referenceID string, uics []string, assetType string) map[string]interface{} {
+	return map[string]interface{}{
+		"ContextId":   contextID,
+		"ReferenceId": referenceID,
+		"RefreshRate": 1000,
+		"Arguments": map[string]interface{}{
+			"Uics":      strings.Join(uics, ","),
+			"AssetType": assetType,
+		},
+	}
+}
+
 // main is the entry point of the program
 func main() {
 	// Connect to the WebSocket using the obtained access token
@@ -294,14 +301,26 @@ func main() {
 	}
 	defer conn.Close()
 
-	// Generate a unique reference ID for the subscription and store it in the map
+	// Generate a unique reference ID for each subscription and store it in the map
+	// Each price update subscription requires a unique reference ID as key, but the same value for type of parsing.
+	// Each Instrument category (FxSpot, ContractFutures, etc.) requires a unique subscription, but the same value for type of parsing.
+
+	// Subscribe to fx prices
 	referenceID := generateID()
 	subscriptionMap[referenceID] = "PriceUpdate"
-
-	// Subscribe to price updates
-	err = subscribeToPrices(accessToken, contextID, referenceID, instrumentID, assetType)
+	fxSpotMessage := subcriptionmessage(contextID, referenceID, fxSpotIDs, "FxSpot")
+	err = subscribeToPrices(accessToken, fxSpotMessage)
 	if err != nil {
-		log.Fatalf("Error subscribing to prices: %v", err)
+		log.Fatalf("Error subscribing to FxSpot: %v", err)
+	}
+
+	// Subscribe to futures
+	referenceID = generateID()
+	subscriptionMap[referenceID] = "PriceUpdate"
+	contractFuturesMessage := subcriptionmessage(contextID, referenceID, contractFuturesIDs, "ContractFutures")
+	err = subscribeToPrices(accessToken, contractFuturesMessage)
+	if err != nil {
+		log.Fatalf("Error subscribing to ContractFutures: %v", err)
 	}
 
 	// Handle WebSocket communication
