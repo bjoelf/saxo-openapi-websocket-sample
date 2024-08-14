@@ -29,7 +29,7 @@ var (
 )
 
 // Replace this with the temporary token provided by Saxo (https://www.developer.saxo/openapi/token/current/)
-var accessToken = "eyJhbGciOiJFUzI1NiIsIng1dCI6IjI3RTlCOTAzRUNGMjExMDlBREU1RTVCOUVDMDgxNkI2QjQ5REEwRkEifQ.eyJvYWEiOiI3Nzc3NSIsImlzcyI6Im9hIiwiYWlkIjoiMTA5IiwidWlkIjoiTDgtS25lNWZneTV5Z0ItN0Zza21wQT09IiwiY2lkIjoiTDgtS25lNWZneTV5Z0ItN0Zza21wQT09IiwiaXNhIjoiRmFsc2UiLCJ0aWQiOiIyMDAyIiwic2lkIjoiYzU0NDZlMGZjMDEyNGE4ZGEzYjZiMTdlMGU2NDgxNzMiLCJkZ2kiOiI4NCIsImV4cCI6IjE3MzEzMTcxNzQiLCJvYWwiOiIxRiIsImlpZCI6IjU0YmZjZWFiNzYwZDQwOTdjNjMyMDhkYmFkMjRiMzA0In0.ggAtzXCGjcgr1H8TlH3A_hAuDxmNifRFD-cD0FDN1Mx0jT4O2byvmWj5EtCXAi3XasoNzB7g6UXw4FoNvv6aZQ" // Temporary access token for testing purposes
+var accessToken = "" // Temporary access token for testing purposes
 
 // subscribeToPrices subscribes to price updates for a specific instrument
 // func subscribeToPrices(accessToken, contextID, referenceID, instrumentID string, assetType string) error {
