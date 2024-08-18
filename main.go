@@ -20,7 +20,7 @@ import (
 // Saxo API and WebSocket Configuration
 const (
 	apiBaseURL = "https://gateway.saxobank.com/sim/openapi"
-	wsBaseURL  = "wss://streaming.saxobank.com/sim/openapi"
+	wsBasePath = "/sim/openapi/streamingws/connect"
 )
 
 // Define the UICs for the price subscriptions
@@ -30,28 +30,17 @@ var (
 	contractFuturesIDs = []string{"37978561", "37978556", "39614794"} // Change for current contracts
 )
 
-// Define the field groups for the order subscription
-var (
-	fieldGroups = []string{
-		"DisplayAndFormat",
-		"ExchangeInfo",
-	}
-	activities = []string{
-		"Order",
-		"Trade",
-		"Position",
-	}
-	accountKey = "yourAccountID" // Replace with your account ID
-)
+// ClientKey; easiest way is here:  https://www.developer.saxo/openapi/tutorial#/1
+var clientKey = "" //Replace with your ClientKey
 
 // Replace this with the temporary token provided by Saxo (https://www.developer.saxo/openapi/token/current/)
-var accessToken = "" // Temporary access token for testing purposes
+var accessToken = "" // Replace with your access token
 
 // connectWebSocket uses the access token to connect to the WebSocket API
 func connectWebSocket(accessToken string, contextid string) (*websocket.Conn, error) {
 
 	// Prepare WebSocket connection
-	u := url.URL{Scheme: "wss", Host: "streaming.saxobank.com", Path: "/sim/openapi/streamingws/connect"}
+	u := url.URL{Scheme: "wss", Host: "streaming.saxobank.com", Path: wsBasePath}
 	params := url.Values{}
 	params.Set("ContextId", contextid)
 	u.RawQuery = params.Encode()
@@ -666,7 +655,7 @@ func main() {
 	referenceID = generateID()
 	subscriptionsMap[referenceID] = "OrderUpdate"
 
-	orderMessage := orderSubcriptionMessage(contextID, referenceID, accountKey)
+	orderMessage := orderSubcriptionMessage(contextID, referenceID, clientKey)
 	err = subscribeToOrders(accessToken, orderMessage)
 	if err != nil {
 		closeWebSocket(conn)
@@ -676,7 +665,7 @@ func main() {
 	// Subscribe to account
 	referenceID = generateID()
 	subscriptionsMap[referenceID] = "PortfolioBalanceUpdate"
-	accountMessage := portfolioBalanceSubscriptionMessage(contextID, referenceID, accountKey)
+	accountMessage := portfolioBalanceSubscriptionMessage(contextID, referenceID, clientKey)
 	err = subscribeToPortfolioBalance(accessToken, accountMessage)
 	if err != nil {
 		closeWebSocket(conn)
